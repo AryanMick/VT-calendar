@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VT Calendar</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            width: 350px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: white;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #630031 0%, #CF4520 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 1.3rem;
+        }
+        
+        .content {
+            padding: 15px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .event-item {
+            padding: 12px;
+            margin-bottom: 10px;
+            border-left: 3px solid #630031;
+            background: #f5f5f5;
+            border-radius: 4px;
+        }
+        
+        .event-title {
+            font-weight: 600;
+            margin-bottom: 5px;
+            font-size: 0.95rem;
+        }
+        
+        .event-date {
+            font-size: 0.85rem;
+            color: #630031;
+            font-weight: 600;
+        }
+        
+        .event-source {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            margin-top: 5px;
+        }
+        
+        .event-source.canvas {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+        
+        .event-source.google {
+            background: #f1f8e9;
+            color: #558b2f;
+        }
+        
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            background: #630031;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        
+        .btn:hover {
+            background: #7d003d;
+        }
+        
+        .empty {
+            text-align: center;
+            padding: 20px;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>VT Calendar</h1>
+    </div>
+    <div class="content">
+        <div id="eventsContainer" class="empty">Loading events...</div>
+        <button class="btn" id="openFullCalendarBtn">Open Full Calendar</button>
+    </div>
+    <script src="popup.js"></script>
+</body>
+</html>

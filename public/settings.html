@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VT Calendar - Settings</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="logo">
+                <h1>VT Calendar</h1>
+                <p>Settings & Privacy</p>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <div class="settings-container">
+                <!-- Navigation -->
+                <div class="settings-nav">
+                    <button class="nav-btn active" data-section="notifications">
+                        📬 Notifications
+                    </button>
+                    <button class="nav-btn" data-section="privacy">
+                        🔒 Privacy & Data
+                    </button>
+                    <button class="nav-btn" data-section="account">
+                        👤 Account
+                    </button>
+                    <button class="nav-btn" id="backToDashboard">
+                        ← Back to Dashboard
+                    </button>
+                </div>
+
+                <!-- Notifications Settings -->
+                <section class="settings-section active" id="notifications">
+                    <h2>Notification Settings</h2>
+                    <p class="section-description">Customize how you receive reminders for upcoming assignments and events.</p>
+
+                    <div class="settings-card">
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <h3>Email Notifications</h3>
+                                <p>Receive email reminders for upcoming assignments</p>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="emailNotifications" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <h3>Push Notifications</h3>
+                                <p>Get browser notifications for important deadlines</p>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="pushNotifications" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <h3>Remind Me Before</h3>
+                                <p>How long before due date to send reminders</p>
+                            </div>
+                            <div class="reminder-controls">
+                                <select id="reminderHours">
+                                    <option value="0">0 hours</option>
+                                    <option value="1">1 hour</option>
+                                    <option value="6">6 hours</option>
+                                    <option value="12">12 hours</option>
+                                    <option value="24" selected>24 hours (1 day)</option>
+                                    <option value="48">48 hours (2 days)</option>
+                                    <option value="72">72 hours (3 days)</option>
+                                    <option value="168">168 hours (1 week)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <h3>Additional Reminders</h3>
+                                <p>Get a second reminder this long before due date</p>
+                            </div>
+                            <div class="reminder-controls">
+                                <select id="reminderMinutes">
+                                    <option value="0">No second reminder</option>
+                                    <option value="15">15 minutes before</option>
+                                    <option value="30">30 minutes before</option>
+                                    <option value="60" selected>1 hour before</option>
+                                    <option value="120">2 hours before</option>
+                                    <option value="180">3 hours before</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <button class="btn btn-primary" id="saveNotifications">Save Notification Settings</button>
+                    </div>
+                </section>
+
+                <!-- Privacy & Data Settings -->
+                <section class="settings-section" id="privacy">
+                    <h2>Privacy & Data Protection</h2>
+                    <p class="section-description">Control how your data is stored and used.</p>
+
+                    <div class="settings-card">
+                        <h3>Data Storage</h3>
+                        <div class="info-section">
+                            <p><strong>✓ Your data is stored securely</strong></p>
+                            <ul>
+                                <li>All passwords are hashed using SHA-256</li>
+                                <li>Data is stored locally in SQLite database</li>
+                                <li>Session tokens are encrypted</li>
+                                <li>Canvas API tokens are stored securely</li>
+                            </ul>
+                        </div>
+
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <h3>Privacy Mode</h3>
+                                <p>Control what information is shared</p>
+                            </div>
+                            <select id="privacyMode" class="select-input">
+                                <option value="standard" selected>Standard</option>
+                                <option value="strict">Strict (minimal data collection)</option>
+                                <option value="open">Open (allow integrations)</option>
+                            </select>
+                        </div>
+
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <h3>Data Sharing</h3>
+                                <p>Allow anonymous usage data to improve the service</p>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="dataSharing">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="info-section">
+                            <h4>🔐 Your Data Rights</h4>
+                            <ul>
+                                <li>You own all your data</li>
+                                <li>You can export your calendar data anytime</li>
+                                <li>Your Canvas token is never shared</li>
+                                <li>All data is encrypted in transit and at rest</li>
+                                <li>We don't sell your data to third parties</li>
+                            </ul>
+                        </div>
+
+                        <button class="btn btn-primary" id="savePrivacy">Save Privacy Settings</button>
+                    </div>
+                </section>
+
+                <!-- Account Settings -->
+                <section class="settings-section" id="account">
+                    <h2>Account Settings</h2>
+                    <p class="section-description">Manage your VT Calendar account.</p>
+
+                    <div class="settings-card">
+                        <div class="account-info">
+                            <h3>Connected Accounts</h3>
+                            <div class="connected-account" id="canvasAccountInfo">
+                                <span class="account-status">⭕ Canvas: Not connected</span>
+                                <button class="btn btn-small btn-secondary" onclick="location.href='/auth.html'">Connect</button>
+                            </div>
+                            <div class="connected-account" id="googleAccountInfo">
+                                <span class="account-status">⭕ Google: Not connected</span>
+                                <button class="btn btn-small btn-secondary" onclick="location.href='/auth.html'">Connect</button>
+                            </div>
+                            <div class="connected-account" id="microsoftAccountInfo">
+                                <span class="account-status">⭕ Microsoft: Not connected</span>
+                                <button class="btn btn-small btn-secondary" onclick="location.href='/auth.html'">Connect</button>
+                            </div>
+                        </div>
+
+                        <div class="account-actions">
+                            <h3>Account Actions</h3>
+                            <button class="btn btn-secondary" id="exportData">📥 Export My Data</button>
+                            <button class="btn btn-secondary" id="clearData">🗑️ Clear All Data</button>
+                            <button class="btn btn-danger" id="deleteAccount">❌ Delete Account</button>
+                        </div>
+
+                        <div class="info-section warning">
+                            <h4>⚠️ Important</h4>
+                            <p>Deleting your account will permanently remove:</p>
+                            <ul>
+                                <li>All calendar events</li>
+                                <li>Connected Canvas, Google, and Microsoft accounts</li>
+                                <li>User preferences and settings</li>
+                                <li>Login sessions</li>
+                            </ul>
+                            <p><strong>This action cannot be undone.</strong></p>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+
+        <footer class="footer">
+            <p>Created by: Ethan Lunsford, Sam Jordon, Shoumik Bisoi, Aryan Bhowmick | Virginia Tech</p>
+        </footer>
+    </div>
+
+    <script src="settings.js"></script>
+</body>
+</html>
+
+

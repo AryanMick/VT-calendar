@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VT Calendar - Course Calendar Consolidating Tool</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="logo">
+                <h1>VT Calendar</h1>
+                <p>Course Calendar Consolidating Tool</p>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <section class="login-section" id="loginSection">
+                <div class="login-box">
+                    <h2>Welcome to VT Calendar</h2>
+                    <p class="subtitle">Consolidate all your course calendars in one place</p>
+                    
+                    <form id="loginForm">
+                        <div class="form-group">
+                            <label for="canvasEmail">Canvas Email</label>
+                            <input type="email" id="canvasEmail" name="canvasEmail" placeholder="username@vt.edu" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="canvasPassword">Canvas Password</label>
+                            <input type="password" id="canvasPassword" name="canvasPassword" placeholder="Enter your password" required>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">Sign In with Canvas</button>
+                    </form>
+
+                    <div class="divider">
+                        <span>Connect Additional Calendars</span>
+                    </div>
+
+                    <button class="btn btn-google" id="connectGoogleBtn" disabled>
+                        <span class="btn-icon">📅</span>
+                        Connect Google Calendar
+                    </button>
+
+                    <button class="btn btn-microsoft" id="connectMicrosoftBtn" disabled>
+                        <span class="btn-icon">🔐</span>
+                        Connect Microsoft Account
+                    </button>
+                </div>
+            </section>
+
+            <section class="dashboard" id="dashboardSection" style="display: none;">
+                <div class="dashboard-header">
+                    <h2>Your Consolidated Calendar</h2>
+                    <button class="btn btn-secondary" id="syncBtn">Sync All Calendars</button>
+                </div>
+
+                <div class="account-status">
+                    <div class="status-item">
+                        <span class="status-icon canvas">✓</span>
+                        <span>Canvas Connected</span>
+                    </div>
+                    <div class="status-item" id="googleStatus">
+                        <span class="status-icon">✗</span>
+                        <span>Google Not Connected</span>
+                    </div>
+                    <div class="status-item" id="msStatus">
+                        <span class="status-icon">✗</span>
+                        <span>Microsoft Not Connected</span>
+                    </div>
+                </div>
+
+                <div class="events-container">
+                    <h3>Upcoming Events</h3>
+                    <div id="eventsList" class="events-list">
+                        <!-- Events will be populated here -->
+                    </div>
+                </div>
+
+                <div class="manual-event-section">
+                    <h3>Add Manual Event</h3>
+                    <form id="manualEventForm">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="eventTitle">Title</label>
+                                <input type="text" id="eventTitle" name="eventTitle" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="eventDate">Due Date</label>
+                                <input type="datetime-local" id="eventDate" name="eventDate" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="eventDescription">Description</label>
+                            <textarea id="eventDescription" name="eventDescription" rows="3"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Add Event</button>
+                    </form>
+                </div>
+            </section>
+        </main>
+
+        <footer class="footer">
+            <p>Created by: Ethan Lunsford, Sam Jordon, Shoumik Bisoi, Aryan Bhowmick | Virginia Tech</p>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
+

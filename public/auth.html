@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VT Calendar - Login</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="calendar-views.css">
+</head>
+<body>
+    <!-- Global always-visible logout button -->
+    <button class="logout-floating" id="logoutFloatingBtn" aria-label="Log out">Log out</button>
+    <div class="container">
+        <header class="header">
+            <button class="logout-top-btn" id="logoutTopBtn" aria-label="Log out">Log out</button>
+            <div class="logo">
+                <h1>VT Calendar</h1>
+                <p>Course Calendar Consolidating Tool</p>
+            </div>
+            <!-- Floating profile (always visible) -->
+            <div class="floating-profile" id="floatingProfile">
+                <button class="profile-menu-btn" id="floatingProfileBtn" aria-label="Profile menu">
+                    <span class="top-avatar">VT</span>
+                    <span class="dropdown-arrow">▼</span>
+                </button>
+                <div class="profile-menu-dropdown" id="floatingProfileMenu">
+                    <div class="profile-menu-header">
+                        <div class="profile-info">
+                            <div class="profile-icon">VT</div>
+                            <div class="profile-details">
+                                <div class="profile-name" id="floatingProfileUserName">User</div>
+                                <div class="profile-email" id="floatingProfileUserEmail">user@vt.edu</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="profile-menu-divider"></div>
+                    <div class="profile-menu-item" id="floatingMenuSettings">⚙️ Settings</div>
+                    <div class="profile-menu-item" id="floatingMenuPrivacy">🔒 Privacy Policy</div>
+                    <div class="profile-menu-item" id="floatingMenuTerms">📄 Terms of Service</div>
+                    <div class="profile-menu-divider"></div>
+                    <div class="profile-menu-item danger" id="floatingMenuLogout">🚪 Sign Out</div>
+                </div>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <!-- Login/Register Section -->
+            <section class="auth-section" id="authSection">
+                <div class="auth-tabs">
+                    <button class="tab-btn active" data-tab="login">Login</button>
+                    <button class="tab-btn" data-tab="register">Register</button>
+                </div>
+
+                <!-- Login Form -->
+                <div class="auth-form active" id="loginForm">
+                    <h2>Sign In</h2>
+                    <p class="subtitle">Use your Virginia Tech email (@vt.edu)</p>
+                    
+                    <form id="loginFormContent">
+                        <div class="form-group">
+                            <label for="loginEmail">VT Email</label>
+                            <input type="email" id="loginEmail" name="email" placeholder="username@vt.edu" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="loginPassword">Password</label>
+                            <input type="password" id="loginPassword" name="password" placeholder="Enter your password" required>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">Sign In</button>
+                    </form>
+                </div>
+
+                <!-- Register Form -->
+                <div class="auth-form" id="registerForm" style="display: none;">
+                    <h2>Create Account</h2>
+                    <p class="subtitle">Sign up with your Virginia Tech email</p>
+                    
+                    <form id="registerFormContent">
+                        <div class="form-group">
+                            <label for="registerEmail">VT Email</label>
+                            <input type="email" id="registerEmail" name="email" placeholder="username@vt.edu" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="registerPassword">Password</label>
+                            <input type="password" id="registerPassword" name="password" placeholder="Choose a password" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="registerCanvasId">Canvas Username</label>
+                            <input type="text" id="registerCanvasId" name="canvasId" placeholder="Your Canvas username">
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">Create Account</button>
+                    </form>
+                </div>
+
+                <!-- 2FA Verification Form -->
+                <div class="auth-form" id="2faForm" style="display: none;">
+                    <h2>Two-Factor Authentication</h2>
+                    <p class="subtitle">Enter the 6-digit code from your authenticator app</p>
+                    
+                    <form id="2faFormContent">
+                        <div class="form-group">
+                            <label for="2faCode">2FA Code</label>
+                            <input type="text" id="2faCode" name="code" maxlength="6" pattern="[0-9]{6}" placeholder="000000" required>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">Verify Code</button>
+                        <p class="help-text">Test code: 000000</p>
+                    </form>
+                </div>
+            </section>
+
+            <!-- Link Canvas Section -->
+            <section class="link-section" id="linkSection" style="display: none;">
+                <div class="link-box">
+                    <h2>Link Your Canvas Account</h2>
+                    <p class="subtitle">Connect Canvas to import all your course assignments and due dates</p>
+                    
+                    <div class="canvas-instructions">
+                        <h3>How to get your Canvas API token:</h3>
+                        <ol>
+                            <li>Go to <a href="https://canvas.vt.edu" target="_blank">canvas.vt.edu</a></li>
+                            <li>Click on your profile picture → Settings</li>
+                            <li>Scroll down to "Approved Integrations"</li>
+                            <li>Click "New Access Token"</li>
+                            <li>Enter a purpose (e.g., "VT Calendar")</li>
+                            <li>Copy the generated token</li>
+                        </ol>
+                    </div>
+
+                    <form id="linkCanvasForm">
+                        <div class="form-group">
+                            <label for="canvasToken">Canvas API Token</label>
+                            <input type="text" id="canvasToken" name="token" placeholder="Paste your Canvas token here" required>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">Link Canvas Account</button>
+                    </form>
+
+                    <button class="btn btn-secondary" id="skipCanvasBtn">Skip for now</button>
+                </div>
+            </section>
+
+            <!-- Dashboard -->
+            <section class="dashboard" id="dashboardSection" style="display: none;">
+                <div class="dashboard-header">
+                    <h2>Welcome to VT Calendar</h2>
+                    <div class="header-actions">
+                        <button class="btn btn-secondary" id="linkCanvasBtn">Link Canvas</button>
+                        <button class="btn btn-secondary" id="syncBtn">Sync Calendars</button>
+                        <button class="btn btn-secondary" id="logoutHeaderBtn">Log out</button>
+                        
+                        <!-- Profile Menu -->
+                        <div class="profile-menu-container">
+                            <button class="profile-menu-btn" id="profileMenuBtn" aria-label="Profile menu">
+                                <span class="top-avatar">VT</span>
+                                <span class="dropdown-arrow">▼</span>
+                            </button>
+                            <div class="profile-menu-dropdown" id="profileMenu">
+                                <div class="profile-menu-header">
+                                    <div class="profile-info">
+                                        <div class="profile-icon">VT</div>
+                                        <div class="profile-details">
+                                            <div class="profile-name" id="profileUserName">User</div>
+                                            <div class="profile-email" id="profileUserEmail">user@vt.edu</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="profile-menu-divider"></div>
+                                <div class="profile-menu-item" id="profileMenuSettings">
+                                    ⚙️ Settings
+                                </div>
+                                <div class="profile-menu-item" id="profileMenuPrivacy">
+                                    🔒 Privacy Policy
+                                </div>
+                                <div class="profile-menu-item" id="profileMenuTerms">
+                                    📄 Terms of Service
+                                </div>
+                                <div class="profile-menu-item" id="profileMenuHelp">
+                                    ❓ Help & Support
+                                </div>
+                                <div class="profile-menu-divider"></div>
+                                <div class="profile-menu-item danger" id="profileMenuLogout">
+                                    🚪 Sign Out
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="account-status">
+                    <div class="status-item" id="canvasStatus">
+                        <span class="status-icon">✗</span>
+                        <span>Canvas Not Connected</span>
+                    </div>
+                    <div class="status-item" id="googleStatus">
+                        <span class="status-icon">✗</span>
+                        <span>Google Not Connected</span>
+                    </div>
+                    <div class="status-item" id="msStatus">
+                        <span class="status-icon">✗</span>
+                        <span>Microsoft Not Connected</span>
+                    </div>
+                </div>
+
+                <div class="events-container">
+                    <div class="view-controls">
+                        <h3>Upcoming Events</h3>
+                        <div class="view-switcher">
+                            <button class="view-btn active" data-view="list">📋 List</button>
+                            <button class="view-btn" data-view="day">📅 Day</button>
+                            <button class="view-btn" data-view="week">📆 Week</button>
+                            <button class="view-btn" data-view="month">📆 Month</button>
+                        </div>
+                    </div>
+
+                    <!-- List View -->
+                    <div id="listView" class="events-view active">
+                        <div id="eventsList" class="events-list"></div>
+                    </div>
+
+                    <!-- Day View -->
+                    <div id="dayView" class="events-view calendar-view">
+                        <div class="day-header"><h4 id="dayDate"></h4></div>
+                        <div id="dayEvents" class="calendar-events"></div>
+                    </div>
+
+                    <!-- Week View -->
+                    <div id="weekView" class="events-view calendar-view">
+                        <div class="week-header">
+                            <button class="nav-arrow" id="prevWeek">←</button>
+                            <h4 id="weekRange"></h4>
+                            <button class="nav-arrow" id="nextWeek">→</button>
+                        </div>
+                        <div id="weekDays" class="week-days"></div>
+                    </div>
+
+                    <!-- Month View -->
+                    <div id="monthView" class="events-view calendar-view">
+                        <div class="month-header">
+                            <button class="nav-arrow" id="prevMonth">←</button>
+                            <h4 id="monthTitle"></h4>
+                            <button class="nav-arrow" id="nextMonth">→</button>
+                        </div>
+                        <div id="monthCalendar" class="month-calendar"></div>
+                    </div>
+                </div>
+
+                <div class="manual-event-section">
+                    <h3>Add Manual Event</h3>
+                    <form id="manualEventForm">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="eventTitle">Title</label>
+                                <input type="text" id="eventTitle" name="eventTitle" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="eventDate">Due Date</label>
+                                <input type="datetime-local" id="eventDate" name="eventDate" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="eventDescription">Description</label>
+                            <textarea id="eventDescription" name="eventDescription" rows="3"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Add Event</button>
+                    </form>
+                </div>
+            </section>
+        </main>
+
+        <footer class="footer">
+            <p>Created by: Ethan Lunsford, Sam Jordon, Shoumik Bisoi, Aryan Bhowmick | Virginia Tech</p>
+        </footer>
+    </div>
+
+    <script src="auth.js"></script>
+    <script src="calendar-views.js"></script>
+</body>
+</html>
+
