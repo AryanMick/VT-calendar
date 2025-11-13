@@ -23,6 +23,7 @@ def get_db():
     return conn
 
 def init_db():
+    """Initialize database tables if they don't exist"""
     db = get_db()
     cursor = db.cursor()
     
@@ -138,7 +139,7 @@ def generate_2fa_code(secret):
 def health():
     return jsonify({'status': 'ok', 'message': 'VT Calendar API is running'})
 
-# User registration
+# User registration endpoint
 @app.route('/api/auth/register', methods=['POST'])
 def register():
     data = request.json
@@ -146,10 +147,11 @@ def register():
     password = data.get('password', '')
     canvas_user_id = data.get('canvasUserId', '')
     
-    # Check if it's a VT email
+    # Make sure it's a VT email
     if not email.endswith('@vt.edu'):
         return jsonify({'error': 'Must use a Virginia Tech email (@vt.edu)'}), 400
     
+    # Hash the password before storing
     password_hash = hash_password(password)
     
     db = get_db()
@@ -178,6 +180,7 @@ def login():
     if not email.endswith('@vt.edu'):
         return jsonify({'error': 'Invalid VT email address'}), 400
     
+    # Hash password to compare with stored hash
     password_hash = hash_password(password)
     
     db = get_db()
@@ -189,6 +192,7 @@ def login():
     user = cursor.fetchone()
     db.close()
     
+    # Check if user exists
     if not user:
         return jsonify({'error': 'Invalid credentials'}), 401
     
@@ -222,7 +226,7 @@ def login():
         'sessionToken': session_token
     })
 
-# 2FA Verification
+# 2FA verification endpoint
 @app.route('/api/auth/verify-2fa', methods=['POST'])
 def verify_2fa():
     data = request.json
@@ -238,10 +242,12 @@ def verify_2fa():
         db.close()
         return jsonify({'error': 'Invalid session'}), 401
     
+    # Make sure 2FA is actually enabled
     if not user['two_factor_enabled']:
         db.close()
         return jsonify({'error': '2FA not enabled for this account'}), 400
     
+    # Verify the code (allow test code 000000 for development)
     expected_code = generate_2fa_code(user['two_factor_secret'])
     if code != expected_code and code != '000000':
         db.close()
@@ -348,7 +354,7 @@ def link_canvas():
         print(f"Canvas link error: {e}")
         return jsonify({'error': 'Failed to link Canvas account'}), 500
 
-# Get Calendar Events
+# Get all calendar events for a user
 @app.route('/api/calendar/events', methods=['GET'])
 def get_events():
     user_id = int(request.args.get('userId') or session.get('userId') or 0)
@@ -359,12 +365,13 @@ def get_events():
         'SELECT * FROM calendar_events WHERE user_id = ? ORDER BY due_date ASC',
         (user_id,)
     )
+    # Convert rows to dictionaries
     events = [dict(row) for row in cursor.fetchall()]
     db.close()
     
     return jsonify({'events': events})
 
-# Add Manual Event
+# Add a manual event (not from Canvas/Google/etc)
 @app.route('/api/calendar/events', methods=['POST'])
 def add_event():
     data = request.json
@@ -383,7 +390,7 @@ def add_event():
     
     return jsonify({'success': True, 'id': event_id})
 
-# Get Settings
+# Get user settings
 @app.route('/api/settings', methods=['GET'])
 def get_settings():
     user_id = int(request.args.get('userId') or session.get('userId') or 0)
@@ -393,6 +400,7 @@ def get_settings():
     cursor.execute('SELECT * FROM user_settings WHERE user_id = ?', (user_id,))
     settings = cursor.fetchone()
     
+    # Create default settings if they don't exist
     if not settings:
         cursor.execute('INSERT INTO user_settings (user_id) VALUES (?)', (user_id,))
         db.commit()
@@ -402,7 +410,7 @@ def get_settings():
     db.close()
     return jsonify({'settings': dict(settings) if settings else {}})
 
-# Update Settings
+# Update user settings
 @app.route('/api/settings', methods=['PUT'])
 def update_settings():
     data = request.json
@@ -410,7 +418,8 @@ def update_settings():
     
     db = get_db()
     cursor = db.cursor()
-    # Check if settings exist
+    
+    # Check if settings already exist
     cursor.execute('SELECT id FROM user_settings WHERE user_id = ?', (user_id,))
     exists = cursor.fetchone()
     
