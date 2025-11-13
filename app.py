@@ -1,23 +1,23 @@
-from flask import Flask, request, jsonify, send_from_directory, session, send_file
+from flask import Flask, request, jsonify, session, send_file
 from flask_cors import CORS
 import sqlite3
 import hashlib
 import secrets
 import os
-import qrcode
-import io
-import base64
 import requests
-from datetime import datetime, timedelta
+from datetime import datetime
 import hmac
 
+# Setup Flask app
 app = Flask(__name__, static_folder='public', static_url_path='')
 app.secret_key = os.environ.get('SESSION_SECRET', 'vt-calendar-secret-key-change-in-production')
 CORS(app, supports_credentials=True, origins=['http://127.0.0.1:3001', 'http://localhost:3001'])
 
+# Database file
 DATABASE = 'calendar.db'
 
 def get_db():
+    """Get database connection"""
     conn = sqlite3.connect(DATABASE)
     conn.row_factory = sqlite3.Row
     return conn
@@ -112,15 +112,19 @@ def init_db():
     db.close()
 
 def hash_password(password):
+    """Hash password using SHA-256"""
     return hashlib.sha256(password.encode()).hexdigest()
 
 def generate_session_token():
+    """Generate a random session token"""
     return secrets.token_urlsafe(32)
 
 def generate_secret():
+    """Generate secret for 2FA"""
     return secrets.token_urlsafe(16)
 
 def generate_2fa_code(secret):
+    """Generate TOTP code for 2FA verification"""
     time = int(datetime.now().timestamp() / 30)
     key = secret.encode()
     hmac_obj = hmac.new(key, str(time).encode(), hashlib.sha256)
@@ -129,12 +133,12 @@ def generate_2fa_code(secret):
     code = int.from_bytes(hash_bytes[offset:offset+4], 'big') & 0x7FFFFFFF
     return str(code % 1000000).zfill(6)
 
-# Health check
+# Health check endpoint
 @app.route('/api/health', methods=['GET'])
 def health():
     return jsonify({'status': 'ok', 'message': 'VT Calendar API is running'})
 
-# Registration
+# User registration
 @app.route('/api/auth/register', methods=['POST'])
 def register():
     data = request.json
@@ -142,6 +146,7 @@ def register():
     password = data.get('password', '')
     canvas_user_id = data.get('canvasUserId', '')
     
+    # Check if it's a VT email
     if not email.endswith('@vt.edu'):
         return jsonify({'error': 'Must use a Virginia Tech email (@vt.edu)'}), 400
     
@@ -163,7 +168,7 @@ def register():
         db.close()
         return jsonify({'error': 'Email already exists'}), 400
 
-# Login
+# User login
 @app.route('/api/auth/login', methods=['POST'])
 def login():
     data = request.json
@@ -187,6 +192,7 @@ def login():
     if not user:
         return jsonify({'error': 'Invalid credentials'}), 401
     
+    # Check if 2FA is enabled
     if user['two_factor_enabled']:
         return jsonify({
             'success': True,
@@ -195,6 +201,7 @@ def login():
             'message': 'Two-factor authentication required'
         })
     
+    # Create session
     session_token = generate_session_token()
     db = get_db()
     cursor = db.cursor()
@@ -258,7 +265,7 @@ def verify_2fa():
         'email': user['vt_email']
     })
 
-# Canvas Link
+# Link Canvas account and import courses
 @app.route('/api/canvas/link', methods=['POST'])
 def link_canvas():
     data = request.json
@@ -269,6 +276,7 @@ def link_canvas():
         return jsonify({'error': 'Canvas token required'}), 400
     
     try:
+        # Fetch courses from Canvas
         headers = {'Authorization': f'Bearer {canvas_token}'}
         courses_response = requests.get(
             'https://canvas.vt.edu/api/v1/courses?enrollment_type=student&enrollment_role=StudentEnrollment',
@@ -280,6 +288,7 @@ def link_canvas():
         cursor = db.cursor()
         synced_count = 0
         
+        # Store each course
         for course in courses:
             cursor.execute(
                 '''INSERT OR REPLACE INTO canvas_courses 
@@ -290,6 +299,7 @@ def link_canvas():
             )
             synced_count += 1
             
+            # Get assignments for this course
             try:
                 assignments_response = requests.get(
                     f"https://canvas.vt.edu/api/v1/courses/{course.get('id')}/assignments",
@@ -298,6 +308,7 @@ def link_canvas():
                 )
                 assignments = assignments_response.json()
                 
+                # Store assignments as calendar events
                 for assignment in assignments:
                     if assignment.get('due_at'):
                         cursor.execute(
@@ -312,7 +323,7 @@ def link_canvas():
             except Exception as e:
                 print(f"Error fetching assignments for course {course.get('id')}: {e}")
         
-        # Check if connection exists
+        # Save Canvas token
         cursor.execute(
             'SELECT id FROM connected_accounts WHERE user_id = ? AND account_type = ?',
             (user_id, 'Canvas')
@@ -450,10 +461,16 @@ def terms():
     return send_file('public/privacy-policy.html')
 
 if __name__ == '__main__':
+    # Initialize database tables
     init_db()
+    
+    # Get port and host from environment or use defaults
     port = int(os.environ.get('PORT', 3001))
     host = os.environ.get('HOST', '127.0.0.1')
+    
     print(f'VT Calendar server running on http://{host}:{port}')
     print(f'Open your browser and navigate to: http://{host}:{port}')
+    
+    # Start the Flask server
     app.run(host=host, port=port, debug=True)
 
