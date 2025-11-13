@@ -21,8 +21,8 @@ A web application that consolidates course calendars from Canvas, Google Calenda
 ## Setup
 
 ### Prerequisites
-- Node.js (v14 or higher)
-- npm or yarn
+- Python 3.8 or higher
+- pip (Python package manager)
 
 ### Installation
 
@@ -31,26 +31,28 @@ A web application that consolidates course calendars from Canvas, Google Calenda
 cd VTCalender
 ```
 
-2. Install dependencies:
+2. Create a virtual environment (recommended):
 ```bash
-npm install
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
 
-3. Create a `.env` file in the root directory:
-```env
-PORT=3000
-CANVAS_API_URL=https://canvas.vt.edu/api/v1
+3. Install dependencies:
+```bash
+pip install -r requirements.txt
 ```
 
 4. Start the server:
 ```bash
-npm start
+python app.py
 ```
 
-For development with auto-restart:
+Or use the startup script:
 ```bash
-npm run dev
+python start.py
 ```
+
+The server will run on http://127.0.0.1:3001
 
 ### Chrome Extension Setup
 

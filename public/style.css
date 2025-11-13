@@ -563,6 +563,19 @@ body::before {
     flex: 1;
 }
 
+.status-item.clickable {
+    cursor: pointer;
+    transition: all 0.3s;
+    border: 2px solid var(--vt-border);
+}
+
+.status-item.clickable:hover {
+    background: var(--vt-light);
+    border-color: var(--vt-maroon);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
 .status-icon {
     font-size: 1.2rem;
     font-weight: bold;

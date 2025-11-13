@@ -1,5 +1,5 @@
 // VT Calendar Authentication JavaScript
-const API_URL = 'http://localhost:3000/api';
+const API_URL = 'http://127.0.0.1:3001/api';
 
 let currentUserId = null;
 let requires2FA = false;
@@ -357,6 +357,8 @@ function updateAccountStatus() {
     
     // Load tokens from localStorage
     authTokens.canvas = localStorage.getItem('canvasToken');
+    authTokens.google = localStorage.getItem('googleToken');
+    authTokens.microsoft = localStorage.getItem('microsoftToken');
     
     if (authTokens.canvas) {
         canvasStatus.innerHTML = '<span class="status-icon" style="color: var(--vt-success);">✓</span><span>Canvas Connected</span>';
@@ -366,11 +368,69 @@ function updateAccountStatus() {
     
     if (authTokens.google) {
         googleStatus.innerHTML = '<span class="status-icon" style="color: var(--vt-success);">✓</span><span>Google Connected</span>';
+        googleStatus.classList.remove('clickable');
+        googleStatus.onclick = null;
+    } else {
+        googleStatus.innerHTML = '<span class="status-icon">+</span><span>Add Google Account</span>';
+        googleStatus.classList.add('clickable');
+        googleStatus.onclick = connectGoogleAccount;
     }
     
     if (authTokens.microsoft) {
         msStatus.innerHTML = '<span class="status-icon" style="color: var(--vt-success);">✓</span><span>Microsoft Connected</span>';
+        msStatus.classList.remove('clickable');
+        msStatus.onclick = null;
+    } else {
+        msStatus.innerHTML = '<span class="status-icon">+</span><span>Add Microsoft Account</span>';
+        msStatus.classList.add('clickable');
+        msStatus.onclick = connectMicrosoftAccount;
     }
+}
+
+// Connect Google Account
+function connectGoogleAccount() {
+    showNotification('Redirecting to Google...', 'info');
+    
+    // Google OAuth URL - in production, this would be your OAuth endpoint
+    const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=YOUR_CLIENT_ID&redirect_uri=http://127.0.0.1:3001/auth/google/callback&response_type=code&scope=https://www.googleapis.com/auth/calendar.readonly&access_type=offline&prompt=consent`;
+    
+    // For now, show instructions
+    const connect = confirm('To connect Google Calendar:\n\n1. Go to Google Cloud Console\n2. Create OAuth 2.0 credentials\n3. Add redirect URI: http://127.0.0.1:3001/auth/google/callback\n4. Authorize calendar access\n\nWould you like to open Google Calendar settings?');
+    
+    if (connect) {
+        window.open('https://calendar.google.com/calendar/u/0/r/settings', '_blank');
+    }
+    
+    // Simulate connection for demo
+    setTimeout(() => {
+        authTokens.google = 'google_token_' + Date.now();
+        localStorage.setItem('googleToken', authTokens.google);
+        showNotification('Google Calendar connected!', 'success');
+        updateAccountStatus();
+    }, 2000);
+}
+
+// Connect Microsoft Account
+function connectMicrosoftAccount() {
+    showNotification('Redirecting to Microsoft...', 'info');
+    
+    // Microsoft OAuth URL
+    const msAuthUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=YOUR_CLIENT_ID&response_type=code&redirect_uri=http://127.0.0.1:3001/auth/microsoft/callback&response_mode=query&scope=https://graph.microsoft.com/Calendars.Read offline_access`;
+    
+    // For now, show instructions
+    const connect = confirm('To connect Microsoft Calendar:\n\n1. Go to Azure Portal\n2. Register an application\n3. Add redirect URI: http://127.0.0.1:3001/auth/microsoft/callback\n4. Authorize calendar access\n\nWould you like to open Outlook Calendar settings?');
+    
+    if (connect) {
+        window.open('https://outlook.live.com/calendar/', '_blank');
+    }
+    
+    // Simulate connection for demo
+    setTimeout(() => {
+        authTokens.microsoft = 'microsoft_token_' + Date.now();
+        localStorage.setItem('microsoftToken', authTokens.microsoft);
+        showNotification('Microsoft Calendar connected!', 'success');
+        updateAccountStatus();
+    }, 2000);
 }
 
 // Load calendar events

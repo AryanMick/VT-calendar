@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const openFullBtn = document.getElementById('openFullCalendarBtn');
     
     openFullBtn.addEventListener('click', () => {
-        chrome.tabs.create({ url: 'http://localhost:3000' });
+        chrome.tabs.create({ url: 'http://127.0.0.1:3001' });
     });
     
     // Load events from localStorage or API
@@ -15,7 +15,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
         
-        const response = await fetch('http://localhost:3000/api/calendar/events?userId=' + userId);
+        const response = await fetch('http://127.0.0.1:3001/api/calendar/events?userId=' + userId);
         const data = await response.json();
         
         if (data.events && data.events.length > 0) {
