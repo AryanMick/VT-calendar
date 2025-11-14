@@ -9,7 +9,10 @@ from datetime import datetime
 import hmac
 
 # Setup Flask app
-app = Flask(__name__, static_folder='public', static_url_path='')
+# Resolve absolute path to the frontend public directory
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+STATIC_DIR = os.path.normpath(os.path.join(BASE_DIR, '..', 'frontend', 'public'))
+app = Flask(__name__, static_folder=STATIC_DIR, static_url_path='')
 app.secret_key = os.environ.get('SESSION_SECRET', 'vt-calendar-secret-key-change-in-production')
 CORS(app, supports_credentials=True, origins=['http://127.0.0.1:3001', 'http://localhost:3001'])
 
@@ -455,19 +458,19 @@ def update_settings():
 # Serve static files
 @app.route('/')
 def index():
-    return send_file('public/auth.html')
+    return send_file(os.path.join(STATIC_DIR, 'auth.html'))
 
 @app.route('/settings.html')
 def settings():
-    return send_file('public/settings.html')
+    return send_file(os.path.join(STATIC_DIR, 'settings.html'))
 
 @app.route('/privacy-policy.html')
 def privacy():
-    return send_file('public/privacy-policy.html')
+    return send_file(os.path.join(STATIC_DIR, 'privacy-policy.html'))
 
 @app.route('/terms-of-service.html')
 def terms():
-    return send_file('public/privacy-policy.html')
+    return send_file(os.path.join(STATIC_DIR, 'privacy-policy.html'))
 
 if __name__ == '__main__':
     # Initialize database tables
