@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 VT Calendar Startup Script
 """
@@ -18,10 +17,10 @@ def main():
 
     # Check if virtual environment exists
     if not os.path.exists(venv_path):
-        print("📦 Creating virtual environment...")
+        print(" Creating virtual environment...")
         subprocess.run([sys.executable, '-m', 'venv', venv_path])
     
-    # Determine activation script based on OS
+    #  activation
     if sys.platform == 'win32':
         pip = os.path.join(venv_path, 'Scripts', 'pip')
         python = os.path.join(venv_path, 'Scripts', 'python')
@@ -38,7 +37,7 @@ def main():
     print("Press Ctrl+C to stop the server")
     print()
     
-    # Start the Flask app
+    # Strat
     os.environ['HOST'] = '127.0.0.1'
     os.environ['PORT'] = '3001'
     subprocess.run([python, app_path])
