@@ -661,6 +661,36 @@ body::before {
     color: #e65100;
 }
 
+/* Import Calendar Button */
+#importCalendarBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 20px;
+    margin-bottom: 20px;
+    font-size: 16px;
+    font-weight: 600;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    transition: 0.2s ease-in-out;
+    background: var(--vt-primary, #861F41); /* fallback to VT Chicago Maroon */
+    color: white;
+    width: 100%;
+}
+
+/* Hover effect */
+#importCalendarBtn:hover {
+    background: #6b1834;
+    transform: translateY(-2px);
+}
+
+/* Active state */
+#importCalendarBtn:active {
+    transform: translateY(0);
+    background: #551229;
+}
+
 /* Manual Event Section */
 .manual-event-section {
     padding-top: 30px;

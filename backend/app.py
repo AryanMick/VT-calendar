@@ -1,5 +1,5 @@
-from flask import Flask, request, jsonify, session, send_file
-from flask_cors import CORS
+from flask import Flask, request, jsonify, session, send_file # type: ignore
+from flask_cors import CORS # type: ignore
 import sqlite3
 import hashlib
 import secrets
@@ -7,6 +7,8 @@ import os
 import requests
 from datetime import datetime
 import hmac
+from icalendar import Calendar # type: ignore
+from io import BytesIO
 
 # Setup Flask app
 # Resolve absolute path to the frontend public directory
@@ -374,6 +376,48 @@ def get_events():
     
     return jsonify({'events': events})
 
+# Import external calendar file
+@app.route('/api/calendar/import', methods=['POST'])
+def import_calendar_file():
+    user_id = int(request.form.get('userId') or session.get('userId') or 0)
+    file = request.files.get('file')
+    
+    if not file:
+        return jsonify({'error': 'No file uploaded'}), 400
+
+    try:
+        content = file.read()
+        cal = Calendar.from_ical(content)
+        
+        db = get_db()
+        cursor = db.cursor()
+        imported_count = 0
+
+        for component in cal.walk():
+            if component.name == "VEVENT":
+                title = str(component.get('summary', 'No Title'))
+                description = str(component.get('description', ''))
+                dt = component.get('dtstart').dt
+                if isinstance(dt, datetime):
+                    due_date = dt.isoformat()
+                else:  # date object
+                    due_date = datetime.combine(dt, datetime.min.time()).isoformat()
+                
+                cursor.execute(
+                    '''INSERT INTO calendar_events 
+                       (user_id, title, description, due_date, source)
+                       VALUES (?, ?, ?, ?, 'Imported')''',
+                    (user_id, title, description, due_date)
+                )
+                imported_count += 1
+        
+        db.commit()
+        db.close()
+        return jsonify({'success': True, 'importedCount': imported_count})
+    except Exception as e:
+        print(f"ICS import error: {e}")
+        return jsonify({'error': 'Failed to parse ICS file'}), 500
+
 # Add a manual event (not from Canvas/Google/etc)
 @app.route('/api/calendar/events', methods=['POST'])
 def add_event():
@@ -458,7 +502,7 @@ def update_settings():
 # Serve static files
 @app.route('/')
 def index():
-    return send_file(os.path.join(STATIC_DIR, 'auth.html'))
+    return send_file(os.path.join(STATIC_DIR, 'index.html'))
 
 @app.route('/settings.html')
 def settings():
