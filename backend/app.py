@@ -137,6 +137,22 @@ def generate_2fa_code(secret):
     code = int.from_bytes(hash_bytes[offset:offset+4], 'big') & 0x7FFFFFFF
     return str(code % 1000000).zfill(6)
 
+def validate_password_strength(password):
+    """Validate password strength requirements"""
+    if len(password) < 8:
+        return False, "Password must be at least 8 characters long"
+    
+    if not any(c.isupper() for c in password):
+        return False, "Password must contain at least one uppercase letter"
+    
+    if not any(c.islower() for c in password):
+        return False, "Password must contain at least one lowercase letter"
+    
+    if not any(c.isdigit() for c in password):
+        return False, "Password must contain at least one number"
+    
+    return True, None
+
 # Health check endpoint
 @app.route('/api/health', methods=['GET'])
 def health():
@@ -153,6 +169,11 @@ def register():
     # Make sure it's a VT email
     if not email.endswith('@vt.edu'):
         return jsonify({'error': 'Must use a Virginia Tech email (@vt.edu)'}), 400
+    
+    # Validate password strength
+    is_valid, error_msg = validate_password_strength(password)
+    if not is_valid:
+        return jsonify({'error': error_msg}), 400
     
     # Hash the password before storing
     password_hash = hash_password(password)
