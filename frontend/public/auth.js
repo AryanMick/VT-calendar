@@ -42,7 +42,7 @@ function setupEventListeners() {
     const linkCanvasBtn = document.getElementById('linkCanvasBtn');
     const syncBtn = document.getElementById('syncBtn');
     const logoutHeaderBtn = document.getElementById('logoutHeaderBtn');
-
+    
     loginForm?.addEventListener('submit', handleLogin);
     registerForm?.addEventListener('submit', handleRegister);
     twoFactorForm?.addEventListener('submit', handle2FAVerify);

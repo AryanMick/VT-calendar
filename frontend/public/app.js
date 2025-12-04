@@ -30,8 +30,12 @@ function setupEventListeners() {
     const manualEventForm = document.getElementById('manualEventForm');
     const syncBtn = document.getElementById('syncBtn');
     const connectGoogleBtn = document.getElementById('connectGoogleBtn');
-    const connectMicrosoftBtn = document.getElementById('connectMicrosoftBtn');
-
+    const connectMicrosoftBtn = document.getElementById('connectMicrosoftBtn')
+    const importCalendarBtn = document.getElementById('importCalendarBtn');
+    const calendarFileInput = document.getElementById('calendarFileInput');;
+    
+    importCalendarBtn?.addEventListener('click', () => calendarFileInput.click());
+    calendarFileInput?.addEventListener('change', handleCalendarFileUpload);
     loginForm?.addEventListener('submit', handleLogin);
     manualEventForm?.addEventListener('submit', handleManualEventAdd);
     syncBtn?.addEventListener('click', handleSync);
@@ -80,6 +84,46 @@ async function handleLogin(e) {
         console.error('Login error:', error);
         showNotification('Login failed. Please try again.', 'error');
     }
+}
+
+// Handle importing calendar files (.ics)
+async function handleCalendarFileUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    if (!currentUserId) {
+        showNotification('Please log in before importing calendar files.', 'error');
+        return;
+    }
+
+    // Prepare form data to send the file
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('userId', currentUserId);
+
+    showNotification('Importing calendar...', 'info');
+
+    try {
+        const response = await fetch(`${API_URL}/calendar/import`, {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showNotification(`Imported ${data.count} events from file!`, 'success');
+            loadCalendarEvents();   // refresh list
+        } else {
+            showNotification('Failed to import calendar.', 'error');
+        }
+    } catch (error) {
+        console.error('ICS upload error:', error);
+        showNotification('Error importing calendar file.', 'error');
+    }
+
+    // Reset the file input so the same file can be selected again
+    event.target.value = '';
 }
 
 // Show dashboard
