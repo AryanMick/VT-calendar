@@ -137,6 +137,30 @@ def generate_2fa_code(secret):
     code = int.from_bytes(hash_bytes[offset:offset+4], 'big') & 0x7FFFFFFF
     return str(code % 1000000).zfill(6)
 
+def validate_password_strength(password):
+    """
+    Validate password strength requirements.
+    Returns (is_valid, error_message) tuple.
+    Requirements:
+    - Minimum 8 characters
+    - At least one uppercase letter
+    - At least one lowercase letter
+    - At least one number
+    """
+    if len(password) < 8:
+        return False, "Password must be at least 8 characters long"
+    
+    if not any(c.isupper() for c in password):
+        return False, "Password must contain at least one uppercase letter"
+    
+    if not any(c.islower() for c in password):
+        return False, "Password must contain at least one lowercase letter"
+    
+    if not any(c.isdigit() for c in password):
+        return False, "Password must contain at least one number"
+    
+    return True, None
+
 # Health check endpoint
 @app.route('/api/health', methods=['GET'])
 def health():
@@ -154,24 +178,35 @@ def register():
     if not email.endswith('@vt.edu'):
         return jsonify({'error': 'Must use a Virginia Tech email (@vt.edu)'}), 400
     
+    # Validate password strength
+    is_valid, error_msg = validate_password_strength(password)
+    if not is_valid:
+        return jsonify({'error': error_msg}), 400
+    
     # Hash the password before storing
     password_hash = hash_password(password)
     
-    db = get_db()
-    cursor = db.cursor()
-    
+    db = None
     try:
+        db = get_db()
+        cursor = db.cursor()
         cursor.execute(
             'INSERT INTO users (vt_email, password_hash, canvas_user_id) VALUES (?, ?, ?)',
             (email, password_hash, canvas_user_id)
         )
         db.commit()
         user_id = cursor.lastrowid
-        db.close()
         return jsonify({'success': True, 'userId': user_id, 'email': email})
     except sqlite3.IntegrityError:
-        db.close()
         return jsonify({'error': 'Email already exists'}), 400
+    except Exception as e:
+        print(f"Registration error: {e}")
+        if db:
+            db.rollback()
+        return jsonify({'error': 'Registration failed'}), 500
+    finally:
+        if db:
+            db.close()
 
 # User login
 @app.route('/api/auth/login', methods=['POST'])
@@ -284,6 +319,7 @@ def link_canvas():
     if not canvas_token:
         return jsonify({'error': 'Canvas token required'}), 400
     
+    db = None
     try:
         # Fetch courses from Canvas
         headers = {'Authorization': f'Bearer {canvas_token}'}
@@ -350,12 +386,17 @@ def link_canvas():
                 (user_id, 'Canvas', canvas_token)
             )
         db.commit()
-        db.close()
         
         return jsonify({'success': True, 'coursesLinked': len(courses), 'syncedCount': synced_count})
     except Exception as e:
         print(f"Canvas link error: {e}")
+        if db:
+            db.rollback()
         return jsonify({'error': 'Failed to link Canvas account'}), 500
+    finally:
+        # Ensure database connection is always closed
+        if db:
+            db.close()
 
 # Get all calendar events for a user
 @app.route('/api/calendar/events', methods=['GET'])
@@ -380,18 +421,26 @@ def add_event():
     data = request.json
     user_id = int(data.get('userId') or session.get('userId') or 0)
     
-    db = get_db()
-    cursor = db.cursor()
-    cursor.execute(
-        '''INSERT INTO calendar_events (user_id, title, description, due_date, source)
-           VALUES (?, ?, ?, ?, 'Manual')''',
-        (user_id, data.get('title'), data.get('description'), data.get('dueDate'))
-    )
-    db.commit()
-    event_id = cursor.lastrowid
-    db.close()
-    
-    return jsonify({'success': True, 'id': event_id})
+    db = None
+    try:
+        db = get_db()
+        cursor = db.cursor()
+        cursor.execute(
+            '''INSERT INTO calendar_events (user_id, title, description, due_date, source)
+               VALUES (?, ?, ?, ?, 'Manual')''',
+            (user_id, data.get('title'), data.get('description'), data.get('dueDate'))
+        )
+        db.commit()
+        event_id = cursor.lastrowid
+        return jsonify({'success': True, 'id': event_id})
+    except Exception as e:
+        print(f"Error adding event: {e}")
+        if db:
+            db.rollback()
+        return jsonify({'error': 'Failed to add event'}), 500
+    finally:
+        if db:
+            db.close()
 
 # Get user settings
 @app.route('/api/settings', methods=['GET'])
@@ -419,41 +468,49 @@ def update_settings():
     data = request.json
     user_id = int(data.get('userId') or session.get('userId') or 0)
     
-    db = get_db()
-    cursor = db.cursor()
-    
-    # Check if settings already exist
-    cursor.execute('SELECT id FROM user_settings WHERE user_id = ?', (user_id,))
-    exists = cursor.fetchone()
-    
-    if exists:
-        cursor.execute(
-            '''UPDATE user_settings SET
-               email_notifications = ?,
-               push_notifications = ?,
-               reminder_before_hours = ?,
-               reminder_before_minutes = ?,
-               privacy_mode = ?,
-               data_sharing = ?
-               WHERE user_id = ?''',
-            (data.get('email_notifications'), data.get('push_notifications'),
-             data.get('reminder_before_hours'), data.get('reminder_before_minutes'),
-             data.get('privacy_mode'), data.get('data_sharing'), user_id)
-        )
-    else:
-        cursor.execute(
-            '''INSERT INTO user_settings 
-               (user_id, email_notifications, push_notifications, reminder_before_hours, 
-                reminder_before_minutes, privacy_mode, data_sharing)
-               VALUES (?, ?, ?, ?, ?, ?, ?)''',
-            (user_id, data.get('email_notifications'), data.get('push_notifications'),
-             data.get('reminder_before_hours'), data.get('reminder_before_minutes'),
-             data.get('privacy_mode'), data.get('data_sharing'))
-        )
-    db.commit()
-    db.close()
-    
-    return jsonify({'success': True})
+    db = None
+    try:
+        db = get_db()
+        cursor = db.cursor()
+        
+        # Check if settings already exist
+        cursor.execute('SELECT id FROM user_settings WHERE user_id = ?', (user_id,))
+        exists = cursor.fetchone()
+        
+        if exists:
+            cursor.execute(
+                '''UPDATE user_settings SET
+                   email_notifications = ?,
+                   push_notifications = ?,
+                   reminder_before_hours = ?,
+                   reminder_before_minutes = ?,
+                   privacy_mode = ?,
+                   data_sharing = ?
+                   WHERE user_id = ?''',
+                (data.get('email_notifications'), data.get('push_notifications'),
+                 data.get('reminder_before_hours'), data.get('reminder_before_minutes'),
+                 data.get('privacy_mode'), data.get('data_sharing'), user_id)
+            )
+        else:
+            cursor.execute(
+                '''INSERT INTO user_settings 
+                   (user_id, email_notifications, push_notifications, reminder_before_hours, 
+                    reminder_before_minutes, privacy_mode, data_sharing)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)''',
+                (user_id, data.get('email_notifications'), data.get('push_notifications'),
+                 data.get('reminder_before_hours'), data.get('reminder_before_minutes'),
+                 data.get('privacy_mode'), data.get('data_sharing'))
+            )
+        db.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        print(f"Error updating settings: {e}")
+        if db:
+            db.rollback()
+        return jsonify({'error': 'Failed to update settings'}), 500
+    finally:
+        if db:
+            db.close()
 
 # Serve static files
 @app.route('/')
