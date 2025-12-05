@@ -6,28 +6,7 @@ yarn.lock
 # Environment
 .env
 .env.local
-
-# Database
-*.db
-*.sqlite
-
-# Logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# OS
-.DS_Store
-Thumbs.db
-
-# IDE
-.vscode/
-.idea/
-
-# Build
-dist/
-build/
+.env.test
 
 # Runtime
 *.pid
@@ -38,3 +17,153 @@ build/
 venv/
 backend/venv/
 
+
+# Testing
+coverage/
+.jest-cache/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv/
+env/
+backend/venv/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build
+dist/
+build/
+*/dist/
+*/build/
+*/static/
+
+# Misc
+.cache/
+*.bak
+*.tmp
+*/temp/
+*/tmp/
+*/cache/
+*/log/
+*/logs/
+*.pid
+*.seed
+*.pid.lock
+.npm
+*/npm-debug.log*
+*/yarn-debug.log*
+*/yarn-error.log*
+.pnp
+.pnp.js
+*/node_modules/
+*/jspm_packages/
+*.tsbuildinfo
+.eslintcache
+.stylelintcache
+*/coverage/
+*/.nyc_output/
+*/lib-cov/
+*/test-results/
+*/junit.xml
+*/test-report.xml
+*/.pytest_cache/
+*/htmlcov/
+*/.tox/
+*/.hypothesis/
+*/.coverage
+.coverage.*
+*/nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+cython_debug/
+*/celerybeat-schedule
+*/celerybeat.pid
+*.sage.py
+instance/
+.webassets-cache
+.scrapy
+docs/_build/
+.ipynb_checkpoints
+profile_default/
+ipython_config.py
+.python-version
+pip-log.txt
+pip-delete-this-directory.txt
+.spyderproject
+.spyproject
+.ropeproject
+target/
+.vscode/
+.idea/
+.env
+.venv
+*/ENV/
+*/env.bak/
+*/venv.bak/
+.Trash-*/
+$RECYCLE.BIN/
+Desktop.ini
+ehthumbs.db
+ehthumbs_vista.db
+[Tt]humbs.db
+~$*
+.AppleDouble
+.LSOverride
+.Spotlight-V100
+.Trashes
+.DS_Store?
+._*
+.DocumentRevisions-V100
+.fseventsd
+.TemporaryItems
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+*.stackdump
+.serverless/
+.fusebox/
+.dynamodb/
+.tern-port
+.vscode-test
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+*.lock
+yarn.lock
+*/
