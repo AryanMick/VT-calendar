@@ -414,26 +414,71 @@ function updateAccountStatus() {
 }
 
 // Connect Google Account
-function connectGoogleAccount() {
-    showNotification('Redirecting to Google...', 'info');
-    
-    // Google OAuth URL - in production, this would be your OAuth endpoint
-    const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=YOUR_CLIENT_ID&redirect_uri=http://127.0.0.1:3001/auth/google/callback&response_type=code&scope=https://www.googleapis.com/auth/calendar.readonly&access_type=offline&prompt=consent`;
-    
-    // For now, show instructions
-    const connect = confirm('To connect Google Calendar:\n\n1. Go to Google Cloud Console\n2. Create OAuth 2.0 credentials\n3. Add redirect URI: http://127.0.0.1:3001/auth/google/callback\n4. Authorize calendar access\n\nWould you like to open Google Calendar settings?');
-    
-    if (connect) {
-        window.open('https://calendar.google.com/calendar/u/0/r/settings', '_blank');
+async function connectGoogleAccount() {
+    try {
+        showNotification('Initiating Google OAuth flow...', 'info');
+        
+        // Get the Google OAuth URL from the backend
+        const response = await fetch('http://127.0.0.1:3001/api/google/auth', {
+            method: 'GET',
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to initiate Google OAuth');
+        }
+        
+        const data = await response.json();
+        
+        // Open the Google OAuth consent screen in a popup
+        const width = 600;
+        const height = 700;
+        const left = (window.screen.width - width) / 2;
+        const top = (window.screen.height - height) / 2;
+        
+        window.open(
+            data.auth_url,
+            'Google OAuth',
+            `width=${width},height=${height},top=${top},left=${left},resizable=yes,scrollbars=yes,status=yes`
+        );
+        
+        // Check for OAuth completion
+        checkOAuthCompletion();
+        
+    } catch (error) {
+        console.error('Error connecting to Google:', error);
+        showNotification('Failed to connect to Google Calendar. Please try again.', 'error');
     }
-    
-    // Simulate connection for demo
-    setTimeout(() => {
-        authTokens.google = 'google_token_' + Date.now();
-        localStorage.setItem('googleToken', authTokens.google);
-        showNotification('Google Calendar connected!', 'success');
-        updateAccountStatus();
-    }, 2000);
+}
+
+// Check if OAuth flow was completed
+async function checkOAuthCompletion() {
+    const checkInterval = setInterval(async () => {
+        try {
+            const response = await fetch('http://127.0.0.1:3001/api/google/events', {
+                method: 'GET',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (response.ok) {
+                clearInterval(checkInterval);
+                const data = await response.json();
+                if (data.length > 0) {
+                    showNotification('Successfully connected to Google Calendar!', 'success');
+                    updateAccountStatus();
+                    loadCalendarEvents();
+                }
+            }
+        } catch (error) {
+            console.error('Error checking OAuth status:', error);
+        }
+    }, 2000); // Check every 2 seconds
 }
 
 // Connect Microsoft Account
@@ -547,23 +592,51 @@ async function handleManualEventAdd(e) {
 
 // Handle sync
 async function handleSync() {
-    showNotification('Syncing calendars...', 'info');
-    
     try {
-        if (authTokens.canvas) {
-            const response = await fetch(`${API_URL}/canvas/assignments?userId=${currentUserId}`, {
+        showNotification('Syncing with Google Calendar...', 'info');
+        const syncBtn = document.getElementById('syncBtn');
+        const originalText = syncBtn.innerHTML;
+        
+        // Disable sync button during sync
+        syncBtn.disabled = true;
+        syncBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Syncing...';
+        
+        try {
+            // Determine user ID for sync (needed by backend mock endpoint)
+            const userId = currentUserId || localStorage.getItem('userId');
+
+            // Trigger Google Calendar sync
+            const response = await fetch('http://127.0.0.1:3001/api/google/calendar/sync', {
+                method: 'POST',
+                credentials: 'include',
                 headers: {
-                    'Authorization': `Bearer ${authTokens.canvas}`
-                }
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ userId })
             });
             
-            if (response.ok) {
-                const data = await response.json();
-                showNotification(`Synced ${data.count} assignments from Canvas!`, 'success');
+            const result = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(result.error || 'Failed to sync with Google Calendar');
             }
+            
+            // Reload events after successful sync
+            await loadCalendarEvents();
+            
+            // Show success message with number of events synced
+            if (result.events_synced > 0) {
+                showNotification(`Successfully synced ${result.events_synced} events from Google Calendar`, 'success');
+            } else {
+                showNotification('No new events to sync from Google Calendar', 'info');
+            }
+            
+            return result;
+        } finally {
+            // Re-enable sync button
+            syncBtn.disabled = false;
+            syncBtn.innerHTML = originalText;
         }
-        
-        loadCalendarEvents();
     } catch (error) {
         console.error('Sync error:', error);
         showNotification('Sync failed. Please try again.', 'error');

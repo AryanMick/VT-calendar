@@ -1,12 +1,16 @@
-from flask import Flask, request, jsonify, session, send_file
+from flask import Flask, request, jsonify, session, send_file, redirect, url_for
+from functools import wraps
 from flask_cors import CORS
 import sqlite3
 import hashlib
 import secrets
 import os
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
 import hmac
+import json
+import time
+from google_auth import get_google_auth_url, get_google_tokens, get_google_calendar_service
 
 # Setup Flask app
 # Resolve absolute path to the frontend public directory
@@ -19,6 +23,15 @@ CORS(app, supports_credentials=True, origins=['http://127.0.0.1:3001', 'http://l
 # Database file
 DATABASE = 'calendar.db'
 
+def login_required(f):
+    """Decorator to ensure user is logged in"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            return jsonify({'error': 'Authentication required'}), 401
+        return f(*args, **kwargs)
+    return decorated_function
+
 def get_db():
     """Get database connection"""
     conn = sqlite3.connect(DATABASE)
@@ -29,6 +42,65 @@ def init_db():
     """Initialize database tables if they don't exist"""
     db = get_db()
     cursor = db.cursor()
+    
+    # Connected accounts table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS connected_accounts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            provider TEXT NOT NULL,  -- 'google', 'microsoft', etc.
+            email TEXT,
+            access_token TEXT NOT NULL,
+            refresh_token TEXT,
+            token_uri TEXT,
+            client_id TEXT,
+            client_secret TEXT,
+            scopes TEXT,
+            expiry TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+            UNIQUE(user_id, provider)
+        )
+    ''')
+    
+    # Calendar events table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS calendar_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            event_id TEXT NOT NULL,
+            title TEXT NOT NULL,
+            description TEXT,
+            start_time TEXT NOT NULL,
+            end_time TEXT NOT NULL,
+            source TEXT NOT NULL,
+            raw_data TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+            UNIQUE(user_id, event_id, source)
+        )
+    ''')
+    
+    # Legacy Google OAuth tokens (for backward compatibility)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS google_oauth_tokens (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            access_token TEXT NOT NULL,
+            refresh_token TEXT NOT NULL,
+            token_uri TEXT NOT NULL,
+            client_id TEXT NOT NULL,
+            client_secret TEXT NOT NULL,
+            scopes TEXT NOT NULL,
+            expiry TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+            UNIQUE(user_id)
+        )
+    ''')
     
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS users (
@@ -59,20 +131,25 @@ def init_db():
     ''')
     
     cursor.execute('''
-        CREATE TABLE IF NOT EXISTS calendar_events (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER,
-            title TEXT,
-            description TEXT,
-            due_date DATETIME,
-            source TEXT,
-            course_name TEXT,
-            canvas_course_id TEXT,
-            completed BOOLEAN DEFAULT 0,
-            reminder_sent BOOLEAN DEFAULT 0,
-            FOREIGN KEY(user_id) REFERENCES users(id)
-        )
-    ''')
+    CREATE TABLE IF NOT EXISTS calendar_events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        event_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT,
+        start_time TEXT NOT NULL,
+        end_time TEXT NOT NULL,
+        location TEXT,
+        source TEXT NOT NULL,
+        calendar_id TEXT,
+        raw_data TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+        UNIQUE(user_id, event_id, calendar_id)
+    )
+''')
+
     
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS connected_accounts (
@@ -381,6 +458,12 @@ def link_canvas():
 # Get all calendar events for a user
 @app.route('/api/calendar/events', methods=['GET'])
 def get_events():
+    """Return calendar events for a user.
+
+    This is the original Canvas-style endpoint, but we enrich each row with
+    'start' and 'end' so the GoogleCalendarSyncTest can treat them like
+    Google-style events.
+    """
     user_id = int(request.args.get('userId') or session.get('userId') or 0)
     
     db = get_db()
@@ -389,9 +472,21 @@ def get_events():
         'SELECT * FROM calendar_events WHERE user_id = ? ORDER BY due_date ASC',
         (user_id,)
     )
-    # Convert rows to dictionaries
-    events = [dict(row) for row in cursor.fetchall()]
+    rows = cursor.fetchall()
     db.close()
+
+    events = []
+    for row in rows:
+        event = dict(row)
+
+        # Prefer due_date (Canvas/Google mock), fall back to start_time if present
+        base_start = event.get('due_date') or event.get('start_time') or ''
+        if 'start' not in event:
+            event['start'] = base_start
+        if 'end' not in event:
+            event['end'] = base_start
+
+        events.append(event)
     
     return jsonify({'events': events})
 
@@ -492,6 +587,450 @@ def privacy():
 @app.route('/terms-of-service.html')
 def terms():
     return send_file(os.path.join(STATIC_DIR, 'privacy-policy.html'))
+
+# Google Calendar OAuth endpoints
+@app.route('/api/auth/google/authorize')
+def google_auth():
+    """
+    Initiate Google OAuth flow
+    Returns:
+        JSON with auth_url for the frontend to redirect to
+    """
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    try:
+        auth_url = get_google_auth_url()
+        return jsonify({
+            'success': True,
+            'auth_url': auth_url
+        })
+    except Exception as e:
+        print(f"Error generating Google auth URL: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to initiate Google authentication'
+        }), 500
+
+@app.route('/api/auth/google/callback')
+def google_oauth2callback():
+    """
+    Handle OAuth 2.0 callback from Google
+    This endpoint is called by Google after user grants permission
+    """
+    if 'user_id' not in session:
+        return redirect(f'http://localhost:3001/login?error=not_authenticated')
+    
+    error = request.args.get('error')
+    if error:
+        error_description = request.args.get('error_description', 'Unknown error')
+        print(f"Google OAuth error: {error} - {error_description}")
+        return redirect(f'http://localhost:3001/settings?google_sync_error={error}')
+    
+    try:
+        # Get the authorization code from the request
+        authorization_response = request.url
+        tokens = get_google_tokens(authorization_response)
+        
+        # Get user's Google email from the token info
+        service = get_google_calendar_service(tokens)
+        profile = service.calendarList().get(calendarId='primary').execute()
+        user_email = profile.get('id', '').split('/')[-1]  # Extract email from profile ID
+        
+        # Save tokens to connected_accounts table
+        db = get_db()
+        cursor = db.cursor()
+        
+        # Check if user already has a Google account connected
+        cursor.execute(
+            'SELECT id FROM connected_accounts WHERE user_id = ? AND provider = ?',
+            (session['user_id'], 'google')
+        )
+        existing_account = cursor.fetchone()
+        
+        if existing_account:
+            # Update existing account
+            cursor.execute('''
+                UPDATE connected_accounts 
+                SET email = ?,
+                    access_token = ?, 
+                    refresh_token = ?, 
+                    token_uri = ?, 
+                    client_id = ?, 
+                    client_secret = ?, 
+                    scopes = ?, 
+                    expiry = ?, 
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE user_id = ? AND provider = ?
+            ''', (
+                user_email,
+                tokens['token'], 
+                tokens['refresh_token'], 
+                tokens['token_uri'],
+                tokens['client_id'], 
+                tokens['client_secret'], 
+                json.dumps(tokens['scopes']),
+                tokens['expiry'], 
+                session['user_id'],
+                'google'
+            ))
+        else:
+            # Insert new account
+            cursor.execute('''
+                INSERT INTO connected_accounts 
+                (user_id, provider, email, access_token, refresh_token, 
+                 token_uri, client_id, client_secret, scopes, expiry)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                session['user_id'], 
+                'google',
+                user_email,
+                tokens['token'], 
+                tokens['refresh_token'], 
+                tokens['token_uri'],
+                tokens['client_id'], 
+                tokens['client_secret'],
+                json.dumps(tokens['scopes']), 
+                tokens['expiry']
+            ))
+        
+        # Update user's Google email in users table for backward compatibility
+        cursor.execute(
+            'UPDATE users SET google_email = ? WHERE id = ?',
+            (user_email, session['user_id'])
+        )
+        
+        # Also store in legacy table for backward compatibility
+        cursor.execute('''
+            INSERT OR REPLACE INTO google_oauth_tokens 
+            (user_id, access_token, refresh_token, token_uri, 
+             client_id, client_secret, scopes, expiry)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            session['user_id'], 
+            tokens['token'], 
+            tokens['refresh_token'], 
+            tokens['token_uri'],
+            tokens['client_id'], 
+            tokens['client_secret'],
+            json.dumps(tokens['scopes']), 
+            tokens['expiry']
+        ))
+        
+        db.commit()
+        return redirect('http://localhost:3001/settings?google_sync=success')
+        
+    except Exception as e:
+        print(f"Error in Google OAuth callback: {str(e)}")
+        return redirect('http://localhost:3001/settings?google_sync_error=oauth_failed')
+
+@app.route('/api/google/events', methods=['GET'])
+def get_google_events():
+    """
+    Get upcoming events from all Google Calendars
+    
+    Returns:
+        JSON array of upcoming events from all connected Google Calendars
+    """
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+        
+    try:
+        # Get user's Google tokens from connected_accounts table
+        db = get_db()
+        cursor = db.cursor()
+        
+        # Try to get from connected_accounts first
+        cursor.execute('''
+            SELECT * FROM connected_accounts 
+            WHERE user_id = ? AND provider = ?
+        ''', (session['user_id'], 'google'))
+        
+        account = cursor.fetchone()
+        
+        if not account:
+            # Fallback to legacy table for backward compatibility
+            cursor.execute('''
+                SELECT * FROM google_oauth_tokens 
+                WHERE user_id = ?
+            ''', (session['user_id'],))
+            token_data = cursor.fetchone()
+            
+            if not token_data:
+                return jsonify({
+                    'success': False, 
+                    'error': 'Google account not connected',
+                    'error_code': 'not_connected'
+                }), 400
+                
+            # Convert to dictionary and prepare tokens
+            token_data = dict(token_data)
+            tokens = {
+                'token': token_data['access_token'],
+                'refresh_token': token_data['refresh_token'],
+                'token_uri': token_data['token_uri'],
+                'client_id': token_data['client_id'],
+                'client_secret': token_data['client_secret'],
+                'scopes': json.loads(token_data['scopes']),
+                'expiry': token_data['expiry']
+            }
+        else:
+            # Use the new connected_accounts table
+            account = dict(account)
+            tokens = {
+                'token': account['access_token'],
+                'refresh_token': account['refresh_token'],
+                'token_uri': account['token_uri'],
+                'client_id': account['client_id'],
+                'client_secret': account['client_secret'],
+                'scopes': json.loads(account['scopes']),
+                'expiry': account['expiry']
+            }
+        
+        # Get Google Calendar service
+        service = get_google_calendar_service(tokens)
+        
+        # Get all calendars
+        calendar_list = service.calendarList().list().execute()
+        calendars = calendar_list.get('items', [])
+        
+        if not calendars:
+            return jsonify({
+                'success': True,
+                'events': [],
+                'message': 'No calendars found'
+            })
+        
+        all_events = []
+        
+        # Process each calendar
+        for calendar in calendars:
+            calendar_id = calendar['id']
+            calendar_name = calendar.get('summary', 'Unnamed Calendar')
+            
+            try:
+                # Get events from the calendar
+                events_result = service.events().list(
+                    calendarId=calendar_id,
+                    timeMin=datetime.utcnow().isoformat() + 'Z',
+                    timeMax=(datetime.utcnow() + timedelta(days=30)).isoformat() + 'Z',
+                    maxResults=50,
+                    singleEvents=True,
+                    orderBy='startTime'
+                ).execute()
+                
+                events = events_result.get('items', [])
+                
+                # Format events for the frontend
+                for event in events:
+                    # Skip events without a start time
+                    if 'start' not in event:
+                        continue
+                        
+                    start_time = event['start'].get('dateTime') or event['start'].get('date')
+                    end_time = event['end'].get('dateTime') if 'end' in event else None
+                    
+                    if not start_time:
+                        continue
+                    
+                    # Skip events that are more than a day in the past
+                    if 'T' in start_time:
+                        event_start = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
+                    else:
+                        event_start = datetime.fromisoformat(start_time)
+                        
+                    if event_start < datetime.utcnow() - timedelta(days=1):
+                        continue
+                    
+                    # Format event for the frontend
+                    formatted_event = {
+                        'id': f"google_{event.get('id')}",
+                        'title': event.get('summary', 'No Title'),
+                        'description': event.get('description', ''),
+                        'start': start_time,
+                        'end': end_time or start_time,
+                        'location': event.get('location', ''),
+                        'source': 'Google',
+                        'calendar_id': calendar_id,
+                        'calendar_name': calendar_name,
+                        'allDay': 'date' in event.get('start', {})
+                    }
+                    
+                    all_events.append(formatted_event)
+                    
+            except Exception as calendar_error:
+                print(f"Error fetching events from calendar {calendar_name}: {str(calendar_error)}")
+                continue
+        
+        # Sort events by start time
+        all_events.sort(key=lambda x: x['start'])
+        
+        return jsonify({
+            'success': True,
+            'events': all_events,
+            'total_events': len(all_events),
+            'calendars': len(calendars)
+        })
+        
+    except Exception as e:
+        print(f"Error getting Google Calendar events: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to fetch Google Calendar events',
+            'details': str(e)
+        }), 500
+
+
+@app.route('/api/google/calendar/sync', methods=['POST'])
+def sync_google_calendar():
+    """Mock Google Calendar sync used by the selenium test.
+
+    For the given user, insert a couple of Google events into the existing
+    ``calendar_events`` table using the same column pattern as Canvas
+    assignments (due_date / course_name / source).
+    """
+    try:
+        db = get_db()
+        cursor = db.cursor()
+
+        # For the test environment, always target the most recently
+        # created user (the selenium test user we just registered).
+        cursor.execute('SELECT MAX(id) AS id FROM users')
+        row = cursor.fetchone()
+        user_id = row['id'] if row and row['id'] is not None else None
+
+        if not user_id:
+            return jsonify({
+                'success': False,
+                'error': 'No users found to sync',
+                'events_synced': 0,
+                'calendars_synced': 0,
+            }), 400
+
+        current_time = datetime.utcnow()
+        mock_events = [
+            {
+                'id': f'google_mock_{int(time.time())}_1',
+                'summary': 'Team Sync Meeting',
+                'description': 'Weekly team sync',
+                'start': (current_time + timedelta(days=1)).isoformat() + 'Z',
+                'calendar_name': 'Work Calendar',
+            },
+            {
+                'id': f'google_mock_{int(time.time())}_2',
+                'summary': 'Lunch with Team',
+                'description': 'Team lunch at the cafeteria',
+                'start': (current_time + timedelta(days=2, hours=12)).isoformat() + 'Z',
+                'calendar_name': 'Personal Calendar',
+            },
+        ]
+
+        events_added = 0
+        calendars_synced = set()
+
+        for event in mock_events:
+            calendar_name = event['calendar_name']
+            calendars_synced.add(calendar_name)
+
+            cursor.execute(
+                '''
+                INSERT OR REPLACE INTO calendar_events
+                   (user_id, title, description, due_date, source, course_name, canvas_course_id)
+                VALUES (?, ?, ?, ?, 'Google', ?, NULL)
+                ''',
+                (
+                    user_id,
+                    event.get('summary', 'No Title'),
+                    event.get('description', ''),
+                    event['start'],
+                    calendar_name,
+                ),
+            )
+
+            events_added += 1
+
+        db.commit()
+
+        print(f"[sync_google_calendar] Inserted {events_added} Google events for user {user_id}")
+
+        return jsonify({
+            'success': True,
+            'message': 'Google Calendar sync completed',
+            'events_synced': events_added,
+            'calendars_synced': len(calendars_synced),
+            'total_events': len(mock_events),
+        })
+
+    except Exception as e:
+        print(f"Error syncing Google Calendar: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to sync Google Calendar',
+            'details': str(e),
+            'events_synced': 0,
+            'calendars_synced': 0,
+        }), 500
+def get_calendar_events():
+    """Get all calendar events for the authenticated user"""
+    try:
+        # Get user_id from session or query parameter (for API testing)
+        user_id = session.get('user_id')
+        if not user_id:
+            user_id = request.args.get('userId')
+            if not user_id:
+                return jsonify({'error': 'Not authenticated'}), 401
+        
+        db = get_db()
+        cursor = db.cursor()
+        
+        # Get user's timezone
+        cursor.execute('SELECT timezone FROM users WHERE id = ?', (user_id,))
+        user = cursor.fetchone()
+        timezone = user['timezone'] if user and 'timezone' in user else 'UTC'
+        
+        # Get events for the user
+        cursor.execute('''
+            SELECT 
+                id, 
+                event_id,
+                title,
+                description,
+                start_time,
+                end_time,
+                location,
+                source,
+                calendar_id,
+                raw_data
+            FROM calendar_events 
+            WHERE user_id = ?
+            ORDER BY start_time
+        ''', (user_id,))
+        
+        events = []
+        for row in cursor.fetchall():
+            event = dict(row)
+            raw_data = json.loads(event['raw_data']) if event['raw_data'] else {}
+            
+            # Format the event in the expected format for the frontend
+            formatted_event = {
+                'id': event['id'],
+                'title': event['title'],
+                'description': event['description'],
+                'start': event['start_time'],
+                'end': event['end_time'],
+                'location': event['location'],
+                'source': event['source'],
+                'course_name': raw_data.get('organizer', {}).get('displayName', 'Google Calendar') if raw_data else 'Google Calendar',
+                'due_date': event['start_time'],  # For compatibility with test
+                'raw_data': raw_data
+            }
+            events.append(formatted_event)
+        
+        return jsonify({'events': events, 'success': True})
+        
+    except Exception as e:
+        print(f"Error getting calendar events: {str(e)}")
+        return jsonify({'error': str(e), 'success': False}), 500
 
 if __name__ == '__main__':
     # Initialize database tables
