@@ -30,12 +30,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/vt-calendar.git"
+    "url": "https://github.com/AryanMick/VT-calendar.git"
   },
   "bugs": {
-    "url": "https://github.com/yourusername/vt-calendar/issues"
+    "url": "https://github.com/AryanMick/VT-calendar/issues"
   },
-  "homepage": "https://github.com/yourusername/vt-calendar#readme",
+  "homepage": "https://github.com/AryanMick/VT-calendar#readme",
   "engines": {
     "node": ">=14.0.0",
     "npm": ">=6.0.0"
