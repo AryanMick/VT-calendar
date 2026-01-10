@@ -5,10 +5,7 @@ AI-GENERATED TESTS NOTICE
 -------------------------
 These tests were generated with the assistance of an AI coding assistant
 (Cascade). Prompt summary:
-- "Generate unit tests for the function(s) implemented for PM4 (at least one
-  unit test per function, and at least one integration test incorporating
-  multiple functions working together). ... I want to test the google
-  implementation."
+- "Generate full unite tests for my google calendar implementation"
 
 The tests exercise:
 - sync_google_calendar endpoint (mock Google sync)
@@ -131,6 +128,7 @@ class GoogleTest(unittest.TestCase):
         conn.close()
 
         self.assertEqual(len(rows), 2)
+        print("[PASS] test_sync_google_calendar_inserts_mock_events: inserted 2 Google events for user", user_id)
 
     # Unit test: get_events enriched fields
     def test_get_events_returns_google_style_fields(self):
@@ -160,6 +158,8 @@ class GoogleTest(unittest.TestCase):
                 # course_name is used as "calendar name" in tests
                 self.assertIn("course_name", ev)
 
+        print("[PASS] test_get_events_returns_google_style_fields: events include start/end/source/course_name for Google events for user", user_id)
+
     # Integration test: register -> sync -> get_events
     def test_integration_register_sync_and_fetch_events(self):
         """Full flow: register user, sync Google, then verify events via API."""
@@ -185,7 +185,10 @@ class GoogleTest(unittest.TestCase):
         titles = {e.get("title") for e in google_events}
         self.assertIn("Team Sync Meeting", titles)
         self.assertIn("Lunch with Team", titles)
+        print("[PASS] test_integration_register_sync_and_fetch_events: register -> sync -> fetch events flow succeeded for user", user_id)
 
 
 if __name__ == "__main__":  # pragma: no cover
+    print("\n================ GOOGLE MOCK IMPLEMENTATION TESTS ================")
+    print("Running google_test.GoogleTest suite...\n")
     unittest.main(verbosity=2)
